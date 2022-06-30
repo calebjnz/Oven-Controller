@@ -41,20 +41,19 @@ unsigned long lastTempCheck = 300;
 int tempCheckPeriod = 1000;
 
 // Control stuff
-bool controlState = IDLING;
+int controlState = IDLING;
 int upperThresh = 1;
 int lowerThresh = 5;
 bool relayState = 0;
-bool prevRelayState = 0;
-float estOvershoot = 18;
+int estOvershoot = 18;
 
 
 //Temperature stuff
-float currentTemp = 420;
+int currentTemp = 420;
 int setTemp  = 60;
 int temporarySetTemp = 60;
 int setTempStep = 5;
-float maxTemp = 100;
+int maxTemp = 0;
 
 
 // Button stuff
@@ -169,7 +168,7 @@ void updateState()
       updateScreen();         
     }
   }
-  else if((currButState[SELECT] == true) && (prevButState[SELECT] == false) && (screenState == SET_SCREEN)) {
+  else if((currButState[SELECT] == true) && (prevButState[SELECT] == false) && (screenState == SET_SCREEN) && (controlState == IDLING)) {
     setTemp = temporarySetTemp;
     lcd.clear();
     lcd.setCursor(0,0);
@@ -178,7 +177,7 @@ void updateState()
     lcd.print("Target: ");
     lcd.setCursor(9,1);
     lcd.print(setTemp);
-    
+    Serial.println("Starting");
     controlState = BEANS;
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
@@ -194,9 +193,10 @@ void updateTemp() {
   if(controlState == BEANS) {
     if((setTemp - currentTemp) > estOvershoot) {
       relayState = true;
-    } else {
+    }else {
+      Serial.println("Coasting Now");
       relayState = false;
-      controlState++;
+      controlState = COAST;
     }
   }
 
@@ -205,8 +205,11 @@ void updateTemp() {
     if(currentTemp > maxTemp) {
       maxTemp = currentTemp;
     }
-    if((maxTemp - currentTemp) > 3) {
-      controlState++;
+    if((maxTemp - currentTemp) > 2) {
+      Serial.print("Max Temp = ");
+      Serial.print(maxTemp);
+      Serial.println("Starting Hysteresis");
+      controlState = HYSTER;
     }
   }
 
@@ -220,6 +223,10 @@ void updateTemp() {
     }
   }
   
+  // Ask the temperature sensor to prepare another reading for next time
+  sensors.setWaitForConversion(false);  // makes it async
+  sensors.requestTemperatures();
+  sensors.setWaitForConversion(true);
   
   Serial.print(currentTemp);
   Serial.print(",");
@@ -227,14 +234,5 @@ void updateTemp() {
   Serial.print(",");
   Serial.println(controlState);
   
-  // Ask the temperature sensor to prepare another reading for next time
-  sensors.setWaitForConversion(false);  // makes it async
-  sensors.requestTemperatures();
-  sensors.setWaitForConversion(true);
-
-  if(relayState != prevRelayState)
-  {
-    digitalWrite(RELAY_PIN, relayState);
-    prevRelayState = relayState;
-  }
+  digitalWrite(RELAY_PIN, relayState);
 }
