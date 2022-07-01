@@ -1,4 +1,3 @@
-#include <PIDController.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <LiquidCrystal.h>
@@ -19,7 +18,7 @@
 #define IDLING 0
 #define BEANS 1
 #define COAST 2
-#define PID 3
+#define PROP 3
 
 
 //LCD pin to Arduino
@@ -53,6 +52,7 @@ int controlState = IDLING;
 bool relayState = 0;
 int estOvershoot = 18;
 int relayPower = 0;
+int propGain = 6;
 
 //Temperature stuff
 int currentTemp = 420;
@@ -65,7 +65,6 @@ int maxTemp = 0;
 bool prevButState[4] = {0,0,0,0};
 bool currButState[4] = {0,0,0,0};
 
-PIDController pid;
 // Setup a oneWire instance to communicate with any OneWire devices  
 // (not just Maxim/Dallas temperature ICs) 
 OneWire oneWire(ONE_WIRE_BUS);
@@ -188,7 +187,6 @@ void updateState()
     lcd.print(setTemp);
     Serial.println("Starting");
     controlState = BEANS;
-
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
@@ -200,7 +198,7 @@ void updateState()
 void updateTemp() {
   // Read the temperature that the sensor prepared
   currentTemp = sensors.getTempCByIndex(0);
-
+  
   // If in beans control
   if(controlState == BEANS) {
     if((setTemp - currentTemp) > estOvershoot) {
@@ -218,20 +216,26 @@ void updateTemp() {
       maxTemp = currentTemp;
     }
     if((maxTemp - currentTemp) > fallDetectThresh) {
-      pid.begin();
-      pid.setpoint(setTemp);
-      pid.tune(3,0,0);
-      pid.limit(0,100);
       Serial.print("Max Temp = ");
       Serial.print(maxTemp);
       Serial.println("Starting PID");
-      controlState = PID;
+      controlState = PROP;
     }
   }
 
-  // We have stopped coasting, activate PID control
-  if(controlState == PID) {
-    relayPower = pid.compute(currentTemp);
+  // We have stopped coasting, activate proportional control
+  if(controlState == PROP) {
+    int error = setTemp - currentTemp;
+    if(error > 1) {
+      relayPower = (error * propGain) + 5;
+      if(relayPower > 100) {
+        relayPower = 100;
+      }
+    } else {
+      // Above the threshold
+      // Have a little bit of power to slow the fall
+      relayPower = 5;
+    }
   }
 
 
