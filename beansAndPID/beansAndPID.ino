@@ -252,7 +252,7 @@ void updateRelay()
 {
   if((relayStartTime + relayPeriod) < millis()) {
     relayStartTime = millis();
-    relayOnTime = (relayPeriod*relayPower)/100
+    relayOnTime = (relayPeriod*relayPower)/100;
   }
 
   if((relayStartTime + relayOnTime)> millis()) {
