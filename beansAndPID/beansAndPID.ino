@@ -38,16 +38,21 @@ int screenRefreshPeriod = 1000;
 unsigned long lastScreenRefresh = 450;
 unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
+unsigned long lastRelayUpdate = 0;
+int relayUpdatePeriod = 20;
+int fallDetectThresh = 1;
+
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
-int relayPeriod = 3000;
-int relayOnTime = 2000;
+unsigned long relayPeriod = 3000;
+unsigned long relayOnTime = 2000;
+
 
 // Control stuff
 int controlState = IDLING;
 bool relayState = 0;
 int estOvershoot = 18;
-int relayPower = 100;
+int relayPower = 0;
 
 //Temperature stuff
 int currentTemp = 420;
@@ -96,6 +101,11 @@ void loop()
   if((millis() - lastTempCheck) > tempCheckPeriod) {
     updateTemp();
     lastTempCheck = millis();
+  }
+
+  if(((millis() - lastRelayUpdate) > relayUpdatePeriod) && controlState != IDLING) {
+    updateRelay();
+    lastRelayUpdate = millis();
   }
   
 } 
@@ -178,6 +188,8 @@ void updateState()
     lcd.print(setTemp);
     Serial.println("Starting");
     controlState = BEANS;
+
+    relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
   }
@@ -205,7 +217,7 @@ void updateTemp() {
     if(currentTemp > maxTemp) {
       maxTemp = currentTemp;
     }
-    if((maxTemp - currentTemp) > 2) {
+    if((maxTemp - currentTemp) > fallDetectThresh) {
       pid.begin();
       pid.setpoint(setTemp);
       pid.tune(3,0,0);
@@ -227,7 +239,7 @@ void updateTemp() {
     //kill
     digitalWrite(RELAY_PIN, LOW);
     while(1) {
-      Serial.println("Saftey threshold hit, Oven OFF");\
+      Serial.println("Saftey threshold hit, Oven OFF");
       delay(1000);
     }
   }
@@ -236,7 +248,7 @@ void updateTemp() {
   sensors.setWaitForConversion(false);  // makes it async
   sensors.requestTemperatures();
   sensors.setWaitForConversion(true);
-  
+
   Serial.print(currentTemp);
   Serial.print(",");
   Serial.print(relayState);
@@ -244,8 +256,6 @@ void updateTemp() {
   Serial.print(controlState);
   Serial.print(",");
   Serial.println(relayPower);
-
-  updateRelay();
 }
 
 void updateRelay()
@@ -253,13 +263,17 @@ void updateRelay()
   if((relayStartTime + relayPeriod) < millis()) {
     relayStartTime = millis();
     relayOnTime = (relayPeriod*relayPower)/100;
-  }
-
-  if((relayStartTime + relayOnTime)> millis()) {
+    //Serial.print("Relay start time = ");
+    //Serial.print(relayStartTime);
+    //Serial.print(" Relay on time = ");
+    //Serial.println(relayOnTime);
+  }else if((relayStartTime + relayOnTime) > millis()) {
     //We are in the high part of the pwm cycle
     relayState = true;
   } else {
     // In the low part of the pwm cycle
     relayState = false;
   }
+  
+  digitalWrite(RELAY_PIN, relayState);
 }
