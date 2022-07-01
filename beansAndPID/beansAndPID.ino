@@ -1,3 +1,4 @@
+#include <PIDController.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <LiquidCrystal.h>
@@ -18,8 +19,7 @@
 #define IDLING 0
 #define BEANS 1
 #define COAST 2
-#define PROP 3
-#define TIME_FOR_1C 6792
+#define PID 3
 
 
 //LCD pin to Arduino
@@ -39,16 +39,15 @@ unsigned long lastScreenRefresh = 450;
 unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
 int tempCheckPeriod = 1000;
+unsigned long relayStartTime = 200;
+int relayPeriod = 3000;
+int relayOnTime = 2000;
 
 // Control stuff
 int controlState = IDLING;
-int upperThresh = 1;
-int lowerThresh = 5;
 bool relayState = 0;
 int estOvershoot = 18;
-int relayPower = 10;
-
-
+int relayPower = 100;
 
 //Temperature stuff
 int currentTemp = 420;
@@ -57,16 +56,14 @@ int temporarySetTemp = 60;
 int setTempStep = 5;
 int maxTemp = 0;
 
-
 // Button stuff
 bool prevButState[4] = {0,0,0,0};
 bool currButState[4] = {0,0,0,0};
 
-
+PIDController pid;
 // Setup a oneWire instance to communicate with any OneWire devices  
 // (not just Maxim/Dallas temperature ICs) 
 OneWire oneWire(ONE_WIRE_BUS);
-
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature sensors(&oneWire);
 
@@ -170,7 +167,7 @@ void updateState()
       updateScreen();         
     }
   }
-  else if((currButState[SELECT] == true) && (prevButState[SELECT] == false) && (screenState == SET_SCREEN) && (controlState == IDLING)) {
+  else if((currButState[SELECT] == true) && (prevButState[SELECT] == false) && (screenState == SET_SCREEN)) {
     setTemp = temporarySetTemp;
     lcd.clear();
     lcd.setCursor(0,0);
@@ -184,6 +181,7 @@ void updateState()
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
   }
+  
   buttonsUsed();
 }
 
@@ -194,10 +192,10 @@ void updateTemp() {
   // If in beans control
   if(controlState == BEANS) {
     if((setTemp - currentTemp) > estOvershoot) {
-      relayState = true;
+      relayPower = 100;
     }else {
       Serial.println("Coasting Now");
-      relayState = false;
+      relayPower = 0;
       controlState = COAST;
     }
   }
@@ -208,20 +206,29 @@ void updateTemp() {
       maxTemp = currentTemp;
     }
     if((maxTemp - currentTemp) > 2) {
+      pid.begin();
+      pid.setpoint(setTemp);
+      pid.tune(3,0,0);
+      pid.limit(0,100);
       Serial.print("Max Temp = ");
       Serial.print(maxTemp);
-      Serial.println("Starting Proportional");
-      controlState = PROP;
+      Serial.println("Starting PID");
+      controlState = PID;
     }
   }
 
-  // We have stopped coasting, activate proportional control
-  if(controlState == PROP) {
-    if((setTemp - currentTemp) > lowerThresh) {
-      relayState = true;
-    }
-    else if((setTemp - currentTemp) < -upperThresh) {
-      relayState = false;
+  // We have stopped coasting, activate PID control
+  if(controlState == PID) {
+    relayPower = pid.compute(currentTemp);
+  }
+
+
+  if(currentTemp > (setTemp + 30)) {
+    //kill
+    digitalWrite(RELAY_PIN, LOW);
+    while(1) {
+      Serial.println("Saftey threshold hit, Oven OFF");\
+      delay(1000);
     }
   }
   
@@ -234,7 +241,25 @@ void updateTemp() {
   Serial.print(",");
   Serial.print(relayState);
   Serial.print(",");
-  Serial.println(controlState);
-  
-  digitalWrite(RELAY_PIN, relayState);
+  Serial.print(controlState);
+  Serial.print(",");
+  Serial.println(relayPower);
+
+  updateRelay();
+}
+
+void updateRelay()
+{
+  if((relayStartTime + relayPeriod) < millis()) {
+    relayStartTime = millis();
+    relayOnTime = (relayPeriod*relayPower)/100
+  }
+
+  if((relayStartTime + relayOnTime)> millis()) {
+    //We are in the high part of the pwm cycle
+    relayState = true;
+  } else {
+    // In the low part of the pwm cycle
+    relayState = false;
+  }
 }
