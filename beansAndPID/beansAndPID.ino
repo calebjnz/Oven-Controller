@@ -43,7 +43,7 @@ int fallDetectThresh = 1;
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
-unsigned long relayPeriod = 3000;
+unsigned long relayPeriod = 10000;
 unsigned long relayOnTime = 2000;
 
 
@@ -216,9 +216,6 @@ void updateTemp() {
       maxTemp = currentTemp;
     }
     if((maxTemp - currentTemp) > fallDetectThresh) {
-      Serial.print("Max Temp = ");
-      Serial.print(maxTemp);
-      Serial.println("Starting PID");
       controlState = PROP;
     }
   }
@@ -227,6 +224,7 @@ void updateTemp() {
   if(controlState == PROP) {
     int error = setTemp - currentTemp;
     if(error > 1) {
+      // Below the set temp
       relayPower = (error * propGain) + 5;
       if(relayPower > 100) {
         relayPower = 100;
@@ -234,7 +232,7 @@ void updateTemp() {
     } else {
       // Above the threshold
       // Have a little bit of power to slow the fall
-      relayPower = 5;
+      relayPower = 3;
     }
   }
 
