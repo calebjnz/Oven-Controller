@@ -38,13 +38,14 @@ unsigned long lastScreenRefresh = 450;
 unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
 unsigned long lastRelayUpdate = 0;
-int relayUpdatePeriod = 20;
+int relayUpdatePeriod = 1000;
 int fallDetectThresh = 1;
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 10000;
-unsigned long relayOnTime = 2000;
+unsigned long relayOnTime = 0;
+int slowFall = 3;
 
 
 // Control stuff
@@ -232,7 +233,7 @@ void updateTemp() {
     } else {
       // Above the threshold
       // Have a little bit of power to slow the fall
-      relayPower = 3;
+      relayPower = slowFall;
     }
   }
 
