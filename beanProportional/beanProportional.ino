@@ -3,7 +3,7 @@
 #include <LiquidCrystal.h>
 
 #define ONE_WIRE_BUS 2 
-#define RELAY_PIN 13
+#define RELAY_PIN 12
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -187,6 +187,8 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
+    estOvershoot = -0.14*setTemp + 26.2;
+    slowFall = 0.11*setTemp - 1.85;
     controlState = BEANS;
     relayStartTime = millis();
     delay(1000);
@@ -226,7 +228,7 @@ void updateTemp() {
     int error = setTemp - currentTemp;
     if(error > 1) {
       // Below the set temp
-      relayPower = (error * propGain) + 5;
+      relayPower = (error * propGain) + slowFall;
       if(relayPower > 100) {
         relayPower = 100;
       }
@@ -266,10 +268,6 @@ void updateRelay()
   if((relayStartTime + relayPeriod) < millis()) {
     relayStartTime = millis();
     relayOnTime = (relayPeriod*relayPower)/100;
-    //Serial.print("Relay start time = ");
-    //Serial.print(relayStartTime);
-    //Serial.print(" Relay on time = ");
-    //Serial.println(relayOnTime);
   }else if((relayStartTime + relayOnTime) > millis()) {
     //We are in the high part of the pwm cycle
     relayState = true;
