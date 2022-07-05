@@ -217,74 +217,68 @@ void updateTemp() {
   // Read the temperature that the sensor prepared
   currentTemp = sensors.getTempCByIndex(0);
   
-  if(currentTemp < 0 || currentTemp > 200) {
-    digitalWrite(RELAY_PIN, LOW);
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Bad read, rst plz");
-    while(1) {
-      delay(1000);
+  if(currentTemp > 0) {
+    // Stops bad readings from being used
+    
+    // If in beans control
+    if(controlState == BEANS) {
+      if((setTemp - currentTemp) > estOvershoot) {
+        relayPower = 100;
+      }else {
+        Serial.println("Coasting Now");
+        relayPower = 0;
+        controlState = COAST;
+        controlStateChanged = true;
+      }
     }
-  }
   
-  // If in beans control
-  if(controlState == BEANS) {
-    if((setTemp - currentTemp) > estOvershoot) {
-      relayPower = 100;
-    }else {
-      Serial.println("Coasting Now");
-      relayPower = 0;
-      controlState = COAST;
-      controlStateChanged = true;
+    // If we are coasting after beans control
+    if(controlState == COAST) {
+      if(currentTemp > maxTemp) {
+        maxTemp = currentTemp;
+      }
+      if((maxTemp - currentTemp) > fallDetectThresh) {
+        controlState = PROP;
+        controlStateChanged = true;
+        Input = currentTemp;
+        Setpoint = setTemp;
+        myPID.SetMode(AUTOMATIC);
+        myPID.SetOutputLimits(0,100);
+        myPID.SetSampleTime(PIDSampleTime);
+      }
     }
-  }
-
-  // If we are coasting after beans control
-  if(controlState == COAST) {
-    if(currentTemp > maxTemp) {
-      maxTemp = currentTemp;
-    }
-    if((maxTemp - currentTemp) > fallDetectThresh) {
-      controlState = PROP;
-      controlStateChanged = true;
+  
+    if(controlState == PROP) {
       Input = currentTemp;
-      Setpoint = setTemp;
-      myPID.SetMode(AUTOMATIC);
-      myPID.SetOutputLimits(0,100);
-      myPID.SetSampleTime(PIDSampleTime);
-    }
-  }
-
-  if(controlState == PROP) {
-    Input = currentTemp;
-    if(myPID.Compute()) {
-      relayPower = Output + relayEnergisePower;
-    }
-
-  }
-
-  if(currentTemp > (setTemp + 30)) {
-    //kill
-    digitalWrite(RELAY_PIN, LOW);
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Over Temp Error");
-    while(1) {
-      Serial.println("Saftey threshold hit, Oven OFF");
-      delay(1000);
-    }
-  }
+      if(myPID.Compute()) {
+        relayPower = Output + relayEnergisePower;
+      }
   
-  // Ask the temperature sensor to prepare another reading for next time
-  sensors.setWaitForConversion(false);  // makes it async
-  sensors.requestTemperatures();
-  sensors.setWaitForConversion(true);
-
-  Serial.print(currentTemp);
-  Serial.print(",");
-  Serial.print(controlState);
-  Serial.print(",");
-  Serial.println(relayPower);
+    }
+  
+    if(currentTemp > (setTemp + 30)) {
+      //kill
+      digitalWrite(RELAY_PIN, LOW);
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Over Temp Error");
+      while(1) {
+        Serial.println("Saftey threshold hit, Oven OFF");
+        delay(1000);
+      }
+    }
+    
+    // Ask the temperature sensor to prepare another reading for next time
+    sensors.setWaitForConversion(false);  // makes it async
+    sensors.requestTemperatures();
+    sensors.setWaitForConversion(true);
+  
+    Serial.print(currentTemp);
+    Serial.print(",");
+    Serial.print(controlState);
+    Serial.print(",");
+    Serial.println(relayPower);
+  }
 }
 
 void updateRelay()
