@@ -11,7 +11,7 @@
 //PID stuff
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
-int PIDSampleTime = 10000;
+int PIDSampleTime = 20000;
 
 //Specify the links and initial tuning parameters
 double Kp=10, Ki=0, Kd=5;
