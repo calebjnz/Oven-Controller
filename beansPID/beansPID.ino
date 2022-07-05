@@ -58,16 +58,17 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 4;
+int slowFall = 5;
 
 
 // Control stuff
 int controlState = IDLING;
 bool relayState = 0;
-int estOvershoot = 18;
+int estOvershoot = 19;
 int relayPower = 0;
 int propGain = 6;
 bool controlStateChanged = 0;
+int relayEnergisePower = 5;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -257,7 +258,7 @@ void updateTemp() {
   if(controlState == PROP) {
     Input = currentTemp;
     if(myPID.Compute()) {
-      relayPower = Output;
+      relayPower = Output + relayEnergisePower;
     }
 
   }
