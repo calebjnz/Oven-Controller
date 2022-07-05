@@ -11,9 +11,10 @@
 //PID stuff
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
+int PIDSampleTime = 10000;
 
 //Specify the links and initial tuning parameters
-double Kp=10, Ki=1, Kd=5;
+double Kp=10, Ki=0, Kd=5;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 
@@ -55,7 +56,7 @@ int fallDetectThresh = 1;
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
-unsigned long relayPeriod = 10000;
+unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
 int slowFall = 4;
 
@@ -69,11 +70,11 @@ int propGain = 6;
 bool controlStateChanged = 0;
 
 //Temperature stuff
-int currentTemp = 420;
+float currentTemp = 420;
 int setTemp  = 60;
 int temporarySetTemp = 60;
 int setTempStep = 5;
-int maxTemp = 0;
+float maxTemp = 0;
 
 // Button stuff
 bool prevButState[4] = {0,0,0,0};
@@ -215,6 +216,16 @@ void updateTemp() {
   // Read the temperature that the sensor prepared
   currentTemp = sensors.getTempCByIndex(0);
   
+  if(currentTemp < 0 || currentTemp > 200) {
+    digitalWrite(RELAY_PIN, LOW);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Bad read, rst plz");
+    while(1) {
+      delay(1000);
+    }
+  }
+  
   // If in beans control
   if(controlState == BEANS) {
     if((setTemp - currentTemp) > estOvershoot) {
@@ -238,20 +249,25 @@ void updateTemp() {
       Input = currentTemp;
       Setpoint = setTemp;
       myPID.SetMode(AUTOMATIC);
+      myPID.SetOutputLimits(0,100);
+      myPID.SetSampleTime(PIDSampleTime);
     }
   }
 
-  // We have stopped coasting, activate proportional control
   if(controlState == PROP) {
     Input = currentTemp;
-    myPID.Compute();
-    relayPower = Output;
-  }
+    if(myPID.Compute()) {
+      relayPower = Output;
+    }
 
+  }
 
   if(currentTemp > (setTemp + 30)) {
     //kill
     digitalWrite(RELAY_PIN, LOW);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Over Temp Error");
     while(1) {
       Serial.println("Saftey threshold hit, Oven OFF");
       delay(1000);
@@ -264,8 +280,6 @@ void updateTemp() {
   sensors.setWaitForConversion(true);
 
   Serial.print(currentTemp);
-  Serial.print(",");
-  Serial.print(relayState);
   Serial.print(",");
   Serial.print(controlState);
   Serial.print(",");

@@ -189,7 +189,6 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
-    slowFall = 0.11*setTemp - 1.85;
     controlState = BEANS;
     relayStartTime = millis();
     delay(1000);
