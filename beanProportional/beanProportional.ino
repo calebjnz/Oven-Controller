@@ -43,9 +43,9 @@ int fallDetectThresh = 1;
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
-unsigned long relayPeriod = 10000;
+unsigned long relayPeriod = 5000;
 unsigned long relayOnTime = 0;
-int slowFall = 3;
+int slowFall = 6;
 
 
 // Control stuff
@@ -54,6 +54,7 @@ bool relayState = 0;
 int estOvershoot = 18;
 int relayPower = 0;
 int propGain = 6;
+bool controlStateChanged = 0;
 
 //Temperature stuff
 int currentTemp = 420;
@@ -103,8 +104,9 @@ void loop()
     lastTempCheck = millis();
   }
 
-  if(((millis() - lastRelayUpdate) > relayUpdatePeriod) && controlState != IDLING) {
+  if((((millis() - lastRelayUpdate) > relayUpdatePeriod) && controlState != IDLING) || controlStateChanged) {
     updateRelay();
+    controlStateChanged = false;
     lastRelayUpdate = millis();
   }
   
@@ -187,12 +189,12 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
-    estOvershoot = -0.14*setTemp + 26.2;
     slowFall = 0.11*setTemp - 1.85;
     controlState = BEANS;
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
+    controlStateChanged = true;
   }
   
   buttonsUsed();
@@ -210,6 +212,7 @@ void updateTemp() {
       Serial.println("Coasting Now");
       relayPower = 0;
       controlState = COAST;
+      controlStateChanged = true;
     }
   }
 
@@ -220,13 +223,14 @@ void updateTemp() {
     }
     if((maxTemp - currentTemp) > fallDetectThresh) {
       controlState = PROP;
+      controlStateChanged = true;
     }
   }
 
   // We have stopped coasting, activate proportional control
   if(controlState == PROP) {
     int error = setTemp - currentTemp;
-    if(error > 1) {
+    if(error >= 1) {
       // Below the set temp
       relayPower = (error * propGain) + slowFall;
       if(relayPower > 100) {
