@@ -1,9 +1,21 @@
+#include <PID_v1.h>
+
+
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <LiquidCrystal.h>
 
 #define ONE_WIRE_BUS 2 
 #define RELAY_PIN 12
+
+//PID stuff
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+
+//Specify the links and initial tuning parameters
+double Kp=10, Ki=1, Kd=5;
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -45,7 +57,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 10000;
 unsigned long relayOnTime = 0;
-int slowFall = 6;
+int slowFall = 4;
 
 
 // Control stuff
@@ -53,7 +65,7 @@ int controlState = IDLING;
 bool relayState = 0;
 int estOvershoot = 18;
 int relayPower = 0;
-int propGain = 8;
+int propGain = 6;
 bool controlStateChanged = 0;
 
 //Temperature stuff
@@ -189,7 +201,6 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
-    slowFall = 0.11*setTemp - 1.85;
     controlState = BEANS;
     relayStartTime = millis();
     delay(1000);
@@ -224,23 +235,17 @@ void updateTemp() {
     if((maxTemp - currentTemp) > fallDetectThresh) {
       controlState = PROP;
       controlStateChanged = true;
+      Input = currentTemp;
+      Setpoint = setTemp;
+      myPID.SetMode(AUTOMATIC);
     }
   }
 
   // We have stopped coasting, activate proportional control
   if(controlState == PROP) {
-    int error = setTemp - currentTemp;
-    if(error >= 1) {
-      // Below the set temp
-      relayPower = (error * propGain) + slowFall;
-      if(relayPower > 100) {
-        relayPower = 100;
-      }
-    } else {
-      // Above the threshold
-      // Have a little bit of power to slow the fall
-      relayPower = slowFall;
-    }
+    Input = currentTemp;
+    myPID.Compute();
+    relayPower = Output;
   }
 
 
