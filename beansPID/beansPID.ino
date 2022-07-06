@@ -248,9 +248,15 @@ void updateTemp() {
     if(controlState == PROP) {
       Input = currentTemp;
       if(currentTemp > setTemp) {
-        relayPower = slowFall;
+        relayPower = slowFall - (currentTemp - setTemp) * 0.6;
+        if(relayPower < 0) {
+          relayPower = 0;
+        }
       } else if(myPID.Compute()) {
-        relayPower = Output + relayEnergisePower;
+        relayPower = Output;
+        if(relayPower > 50) {
+          relayPower = 50;
+        }
       }
       updateRelay();
     }
@@ -277,10 +283,6 @@ void updateTemp() {
     Serial.print(controlState);
     Serial.print(",");
     Serial.println(relayPower);
-    Serial.print(",");
-    Serial.print(myPID.GetKp());
-    Serial.print(",");
-    Serial.println(myPID.GetKd());
   }
 }
 
