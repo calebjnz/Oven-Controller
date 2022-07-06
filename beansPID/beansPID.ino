@@ -59,7 +59,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 6;
+int slowFall = 5;
 
 
 // Control stuff
@@ -75,7 +75,7 @@ int relayEnergisePower = 5;
 float currentTemp = 420;
 int setTemp  = 60;
 int temporarySetTemp = 60;
-int setTempStep = 5;
+int setTempStep = 1;
 float maxTemp = 0;
 
 // Button stuff
