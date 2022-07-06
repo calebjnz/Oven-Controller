@@ -59,7 +59,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 8;
+int slowFall = 6;
 
 
 // Control stuff

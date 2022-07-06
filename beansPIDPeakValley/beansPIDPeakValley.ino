@@ -16,7 +16,7 @@
 //Specify the links and initial tuning parameters
 //double Kp=10, Ki=0, Kd=2;
 //PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-int kP = 5;
+int kP = 15;
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -59,7 +59,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 15;
+int slowFall = 5;
 
 
 // Control stuff
