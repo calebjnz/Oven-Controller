@@ -51,7 +51,7 @@ unsigned long lastScreenRefresh = 450;
 unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
 unsigned long lastRelayUpdate = 0;
-int relayUpdatePeriod = 1000;
+int relayUpdatePeriod = 100;
 int fallDetectThresh = 1;
 
 
@@ -188,13 +188,13 @@ void updateState()
   }
   else if ((currButState[UP] == true) && (prevButState[UP] == false) && (screenState == SET_SCREEN)) {
     if(temporarySetTemp <= 145) {
-      temporarySetTemp = temporarySetTemp + 5;
+      temporarySetTemp = temporarySetTemp + setTempStep;
       updateScreen();
     }
   }
   else if ((currButState[DOWN] == true) && (prevButState[DOWN] == false) && (screenState == SET_SCREEN)) {
-    if(temporarySetTemp >= 45) {
-      temporarySetTemp = temporarySetTemp - 5;
+    if(temporarySetTemp >= 41) {
+      temporarySetTemp = temporarySetTemp - setTempStep;
       updateScreen();         
     }
   }
@@ -269,7 +269,7 @@ void updateTemp() {
             relayPower = 100;
           }
         } else {
-          relayPower = 40;
+          relayPower = 25;
         }
       }
     }
@@ -313,7 +313,8 @@ void updateRelay()
   if((relayStartTime + relayPeriod) < millis()) {
     relayStartTime = millis();
     relayOnTime = (relayPeriod*relayPower)/100;
-  }else if((relayStartTime + relayOnTime) > millis()) {
+  }
+  if((relayStartTime + relayOnTime) > millis()) {
     //We are in the high part of the pwm cycle
     relayState = true;
   } else {

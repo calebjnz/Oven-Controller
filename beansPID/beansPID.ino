@@ -59,7 +59,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 4;
+int slowFall = 6;
 
 
 // Control stuff
@@ -69,7 +69,7 @@ int estOvershoot = 19;
 int relayPower = 0;
 int propGain = 6;
 bool controlStateChanged = 0;
-int relayEnergisePower = 5;
+int relayEnergisePower = 6;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -184,13 +184,13 @@ void updateState()
   }
   else if ((currButState[UP] == true) && (prevButState[UP] == false) && (screenState == SET_SCREEN)) {
     if(temporarySetTemp <= 145) {
-      temporarySetTemp = temporarySetTemp + 5;
+      temporarySetTemp = temporarySetTemp + setTempStep;
       updateScreen();
     }
   }
   else if ((currButState[DOWN] == true) && (prevButState[DOWN] == false) && (screenState == SET_SCREEN)) {
-    if(temporarySetTemp >= 45) {
-      temporarySetTemp = temporarySetTemp - 5;
+    if(temporarySetTemp >= 41) {
+      temporarySetTemp = temporarySetTemp - setTempStep;
       updateScreen();         
     }
   }
@@ -289,7 +289,8 @@ void updateRelay()
   if((relayStartTime + relayPeriod) < millis()) {
     relayStartTime = millis();
     relayOnTime = (relayPeriod*relayPower)/100;
-  }else if((relayStartTime + relayOnTime) > millis()) {
+  }
+  if((relayStartTime + relayOnTime) > millis()) {
     //We are in the high part of the pwm cycle
     relayState = true;
   } else {
