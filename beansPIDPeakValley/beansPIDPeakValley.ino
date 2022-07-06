@@ -1,4 +1,4 @@
-#include <PID_v1.h>
+//#include <PID_v1.h>
 
 
 #include <DallasTemperature.h>
@@ -10,13 +10,13 @@
 
 //PID stuff
 //Define Variables we'll be connecting to
-double Setpoint, Input, Output;
-int PIDSampleTime = 20000;
+//double Setpoint, Input, Output;
+//int PIDSampleTime = 20000;
 
 //Specify the links and initial tuning parameters
-double Kp=20, Ki=0, Kd=50;
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-
+//double Kp=10, Ki=0, Kd=2;
+//PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+int kP = 5;
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -59,7 +59,7 @@ int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 10;
+int slowFall = 15;
 
 
 // Control stuff
@@ -70,6 +70,10 @@ int relayPower = 0;
 int propGain = 6;
 bool controlStateChanged = 0;
 int relayEnergisePower = 5;
+bool rising = 0;
+const int historyLength = 10;
+float pastTemps[historyLength] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+float gradient = 1;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -215,13 +219,12 @@ void updateState()
 }
 
 void updateTemp() {
-  
   // Read the temperature that the sensor prepared
   currentTemp = sensors.getTempCByIndex(0);
+  // Finding out if we are rising or falling
   
   if(currentTemp > 0) {
-    // Stops bad readings from being used
-    
+    // Stops bad readings from being used 
     // If in beans control
     if(controlState == BEANS) {
       if((setTemp - currentTemp) > estOvershoot) {
@@ -242,23 +245,36 @@ void updateTemp() {
       if((maxTemp - currentTemp) > fallDetectThresh) {
         controlState = PROP;
         controlStateChanged = true;
-        Input = currentTemp;
-        Setpoint = setTemp;
-        myPID.SetMode(AUTOMATIC);
-        myPID.SetOutputLimits(0,100);
-        myPID.SetSampleTime(PIDSampleTime);
+        //Input = currentTemp;
+        //Setpoint = setTemp;
+        //myPID.SetMode(AUTOMATIC);
+        //myPID.SetOutputLimits(0,100);
+        //myPID.SetSampleTime(PIDSampleTime);
       }
     }
-  
+    
+    fallRiseCalc();
     if(controlState == PROP) {
-      Input = currentTemp;
-      if(myPID.Compute()) {
-        relayPower = Output + relayEnergisePower;
+      if(currentTemp > setTemp){
+        if(rising) {
+          relayPower = 0;
+        } else {
+          relayPower = slowFall;
+        }
       }
-  
+      if(currentTemp < (setTemp - 0.3)) {
+        if(rising) {
+          relayPower = (setTemp - currentTemp) * kP;
+          if(relayPower > 100) {
+            relayPower = 100;
+          }
+        } else {
+          relayPower = 40;
+        }
+      }
     }
   
-    if(currentTemp > (setTemp + 30)) {
+    if(currentTemp > (setTemp + 50)) {
       //kill
       digitalWrite(RELAY_PIN, LOW);
       lcd.clear();
@@ -274,12 +290,21 @@ void updateTemp() {
     sensors.setWaitForConversion(false);  // makes it async
     sensors.requestTemperatures();
     sensors.setWaitForConversion(true);
-  
+
     Serial.print(currentTemp);
     Serial.print(",");
     Serial.print(controlState);
     Serial.print(",");
-    Serial.println(relayPower);
+    Serial.print(relayPower);
+    Serial.print(",");
+    Serial.print(rising);
+    Serial.print(",");
+    Serial.println(gradient);
+    //for(int i = 0; i < historyLength; i++) {
+     // Serial.print(pastTemps[i]);
+     // Serial.print(",");
+   // }
+   // Serial.println();
   }
 }
 
@@ -297,4 +322,21 @@ void updateRelay()
   }
   
   digitalWrite(RELAY_PIN, relayState);
+}
+
+
+void fallRiseCalc() {
+  if((pastTemps[historyLength -1] -0.1) > currentTemp) {
+    rising = false;
+    gradient = (pastTemps[historyLength - 1] - currentTemp)/historyLength;
+  } else if ((pastTemps[historyLength - 1] + 0.1) < currentTemp) {
+    rising = true;
+    gradient = (currentTemp - pastTemps[historyLength -1])/historyLength;
+  }
+  
+  for(int i = (historyLength - 1); i > 0; i--) {
+    pastTemps[i] = pastTemps[i - 1];
+  }
+
+  pastTemps[0] = currentTemp;
 }
