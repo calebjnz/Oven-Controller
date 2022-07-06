@@ -11,10 +11,10 @@
 //PID stuff
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
-int PIDSampleTime = 20000;
+int PIDSampleTime = 25000;
 
 //Specify the links and initial tuning parameters
-double Kp=10, Ki=0, Kd=20;
+double Kp=5, Ki=0, Kd=100;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 
@@ -57,19 +57,19 @@ float fallDetectThresh = 0.5;
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
-unsigned long relayPeriod = 20000;
+unsigned long relayPeriod = 25000;
 unsigned long relayOnTime = 0;
-int slowFall = 4;
+float slowFall = 4;
 
 
 // Control stuff
 int controlState = IDLING;
 bool relayState = 0;
 int estOvershoot = 18;
-int relayPower = 0;
+float relayPower = 0;
 int propGain = 10;
 bool controlStateChanged = 0;
-int relayEnergisePower = 6;
+int relayEnergisePower = 2;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -117,6 +117,11 @@ void loop()
   if((millis() - lastTempCheck) > tempCheckPeriod) {
     updateTemp();
     lastTempCheck = millis();
+  }
+
+  if((millis() - lastRelayUpdate) > 10) {
+    lastRelayUpdate = millis();
+    updateRelay();
   }
 } 
 
@@ -197,7 +202,13 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
-    controlState = BEANS;
+    if((currentTemp + 25) < setTemp) {
+      //No point waiting for beans and coasting:(, might as well do PROP
+      controlState = PROP
+    } else {
+      controlState = BEANS;
+    }
+    slowFall = (setTemp * 0.1);
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
@@ -225,8 +236,6 @@ void updateTemp() {
         controlState = COAST;
         controlStateChanged = true;
       }
-      
-      updateRelay();
     }
   
     // If we are coasting after beans control
@@ -249,16 +258,15 @@ void updateTemp() {
       Input = currentTemp;
       if(currentTemp > setTemp) {
         relayPower = slowFall - (currentTemp - setTemp) * 0.6;
-        if(relayPower < 0) {
+        if(relayPower < 1.5) {
           relayPower = 0;
         }
       } else if(myPID.Compute()) {
         relayPower = Output;
-        if(relayPower > 50) {
-          relayPower = 50;
+        if(relayPower > 30) {
+          relayPower = 30;
         }
       }
-      updateRelay();
     }
   
     if(currentTemp > (setTemp + 30)) {
