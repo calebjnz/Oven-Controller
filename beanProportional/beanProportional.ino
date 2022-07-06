@@ -55,6 +55,9 @@ int estOvershoot = 18;
 int relayPower = 0;
 int propGain = 8;
 bool controlStateChanged = 0;
+bool falling = 0;
+bool rising = 0;
+
 
 //Temperature stuff
 int currentTemp = 420;

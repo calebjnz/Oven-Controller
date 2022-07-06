@@ -16,7 +16,8 @@
 //Specify the links and initial tuning parameters
 //double Kp=10, Ki=0, Kd=2;
 //PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-int kP = 15;
+int kP = 10;
+int kD = 20;
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -73,7 +74,7 @@ int relayEnergisePower = 5;
 bool rising = 0;
 const int historyLength = 10;
 float pastTemps[historyLength] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-float gradient = 1;
+float errorGradient = 1;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -259,17 +260,22 @@ void updateTemp() {
         if(rising) {
           relayPower = 0;
         } else {
-          relayPower = slowFall;
+          relayPower = slowFall - (currentTemp - setTemp)*0.5 + errorGradient;
+          if(relayPower < 0) {
+            relayPower = 0;
+          }
         }
       }
       if(currentTemp < (setTemp - 0.3)) {
         if(rising) {
           relayPower = (setTemp - currentTemp) * kP;
+          int dContribute = -errorGradient*kD;
+          relayPower = relayPower + dContribute;
           if(relayPower > 100) {
             relayPower = 100;
           }
         } else {
-          relayPower = 25;
+            relayPower = 30;
         }
       }
     }
@@ -299,7 +305,7 @@ void updateTemp() {
     Serial.print(",");
     Serial.print(rising);
     Serial.print(",");
-    Serial.println(gradient);
+    Serial.println(errorGradient);
     //for(int i = 0; i < historyLength; i++) {
      // Serial.print(pastTemps[i]);
      // Serial.print(",");
@@ -329,10 +335,10 @@ void updateRelay()
 void fallRiseCalc() {
   if((pastTemps[historyLength -1] -0.1) > currentTemp) {
     rising = false;
-    gradient = (pastTemps[historyLength - 1] - currentTemp)/historyLength;
+    errorGradient = ((pastTemps[historyLenght - 1] - setTemp) - (currentTemp - setTemp))/historyLength
   } else if ((pastTemps[historyLength - 1] + 0.1) < currentTemp) {
     rising = true;
-    gradient = (currentTemp - pastTemps[historyLength -1])/historyLength;
+    errorGradient = ((pastTemps[historyLenght - 1] - setTemp) - (currentTemp - setTemp))/historyLength
   }
   
   for(int i = (historyLength - 1); i > 0; i--) {

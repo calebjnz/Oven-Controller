@@ -14,7 +14,7 @@ double Setpoint, Input, Output;
 int PIDSampleTime = 20000;
 
 //Specify the links and initial tuning parameters
-double Kp=15, Ki=0, Kd=5;
+double Kp=10, Ki=0, Kd=20;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 
@@ -51,23 +51,23 @@ unsigned long lastScreenRefresh = 450;
 unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
 unsigned long lastRelayUpdate = 0;
-int relayUpdatePeriod = 1000;
-int fallDetectThresh = 0;
+int relayUpdatePeriod = 500;
+float fallDetectThresh = 0.5;
 
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 6;
+int slowFall = 4;
 
 
 // Control stuff
 int controlState = IDLING;
 bool relayState = 0;
-int estOvershoot = 19;
+int estOvershoot = 18;
 int relayPower = 0;
-int propGain = 6;
+int propGain = 10;
 bool controlStateChanged = 0;
 int relayEnergisePower = 6;
 
@@ -118,13 +118,6 @@ void loop()
     updateTemp();
     lastTempCheck = millis();
   }
-
-  if((((millis() - lastRelayUpdate) > relayUpdatePeriod) && controlState != IDLING) || controlStateChanged) {
-    updateRelay();
-    controlStateChanged = false;
-    lastRelayUpdate = millis();
-  }
-  
 } 
 
 void updateScreen()
@@ -232,6 +225,8 @@ void updateTemp() {
         controlState = COAST;
         controlStateChanged = true;
       }
+      
+      updateRelay();
     }
   
     // If we are coasting after beans control
@@ -257,6 +252,7 @@ void updateTemp() {
       } else if(myPID.Compute()) {
         relayPower = Output + relayEnergisePower;
       }
+      updateRelay();
     }
   
     if(currentTemp > (setTemp + 30)) {
@@ -281,6 +277,10 @@ void updateTemp() {
     Serial.print(controlState);
     Serial.print(",");
     Serial.println(relayPower);
+    Serial.print(",");
+    Serial.print(myPID.GetKp());
+    Serial.print(",");
+    Serial.println(myPID.GetKd());
   }
 }
 
