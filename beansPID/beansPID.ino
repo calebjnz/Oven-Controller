@@ -14,7 +14,7 @@ double Setpoint, Input, Output;
 int PIDSampleTime = 20000;
 
 //Specify the links and initial tuning parameters
-double Kp=20, Ki=0, Kd=50;
+double Kp=15, Ki=0, Kd=5;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 
@@ -52,14 +52,14 @@ unsigned long lastButCheck = 200;
 unsigned long lastTempCheck = 300;
 unsigned long lastRelayUpdate = 0;
 int relayUpdatePeriod = 1000;
-int fallDetectThresh = 1;
+int fallDetectThresh = 0;
 
 
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 20000;
 unsigned long relayOnTime = 0;
-int slowFall = 10;
+int slowFall = 8;
 
 
 // Control stuff
@@ -252,10 +252,11 @@ void updateTemp() {
   
     if(controlState == PROP) {
       Input = currentTemp;
-      if(myPID.Compute()) {
+      if(currentTemp > setTemp) {
+        relayPower = slowFall;
+      } else if(myPID.Compute()) {
         relayPower = Output + relayEnergisePower;
       }
-  
     }
   
     if(currentTemp > (setTemp + 30)) {
