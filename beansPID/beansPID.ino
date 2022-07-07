@@ -198,7 +198,7 @@ void updateState()
     } else {
       controlState = BEANS;
     }
-    slowFall = (setTemp * 0.1);
+    slowFall = (setTemp * 0.1) - 1;
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
