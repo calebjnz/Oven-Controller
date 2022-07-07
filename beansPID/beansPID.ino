@@ -14,7 +14,7 @@ double Setpoint, Input, Output;
 int PIDSampleTime = 25000;
 
 //Specify the links and initial tuning parameters
-double Kp=5, Ki=0, Kd=100;
+double Kp=8, Ki=0, Kd=50;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 
@@ -69,7 +69,6 @@ int estOvershoot = 18;
 float relayPower = 0;
 int propGain = 10;
 bool controlStateChanged = 0;
-int relayEnergisePower = 2;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -262,7 +261,7 @@ void updateTemp() {
           relayPower = 0;
         }
       } else if(myPID.Compute()) {
-        relayPower = Output;
+        relayPower = Output + slowFall;
         if(relayPower > 30) {
           relayPower = 30;
         }
