@@ -1,6 +1,3 @@
-#include <PID_v1.h>
-
-
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <LiquidCrystal.h>
@@ -8,15 +5,7 @@
 #define ONE_WIRE_BUS 2 
 #define RELAY_PIN 12
 
-//PID stuff
-//Define Variables we'll be connecting to
-double Setpoint, Input, Output;
-int PIDSampleTime = 25000;
-
-//Specify the links and initial tuning parameters
-double Kp=8, Ki=0, Kd=50;
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-
+float kP = 8;
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -26,13 +15,11 @@ PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 #define DOWN 2
 #define SELECT 3
 
-
 // Definitions for control
 #define IDLING 0
 #define BEANS 1
 #define COAST 2
 #define PROP 3
-
 
 //LCD pin to Arduino
 const int pin_RS = 8; 
@@ -54,13 +41,11 @@ unsigned long lastRelayUpdate = 0;
 int relayUpdatePeriod = 500;
 float fallDetectThresh = 0.5;
 
-
 int tempCheckPeriod = 1000;
 unsigned long relayStartTime = 200;
 unsigned long relayPeriod = 25000;
 unsigned long relayOnTime = 0;
 float slowFall = 4;
-
 
 // Control stuff
 int controlState = IDLING;
@@ -68,7 +53,6 @@ bool relayState = 0;
 int estOvershoot = 18;
 float relayPower = 0;
 int propGain = 10;
-bool controlStateChanged = 0;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -86,8 +70,9 @@ bool currButState[4] = {0,0,0,0};
 OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature sensors(&oneWire);
-
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
+
+
 void setup() {
   lcd.begin(16, 2);
   lcd.setCursor(0,0);
@@ -100,6 +85,8 @@ void setup() {
   updateTemp();
   delay(2000);
 }
+
+
 void loop()
 {  
   if((millis() - lastScreenRefresh) > screenRefreshPeriod) {
@@ -124,6 +111,7 @@ void loop()
   }
 } 
 
+
 void updateScreen()
 {
   // If screen is in display current temperature state
@@ -146,6 +134,7 @@ void updateScreen()
   }
 }
 
+
 void checkButtons() 
 {
   int butVoltage;
@@ -165,6 +154,7 @@ void checkButtons()
   }
 }
 
+
 void buttonsUsed()
 {
   for(int i = 0; i <= SELECT; i++) {
@@ -172,6 +162,7 @@ void buttonsUsed()
     currButState[i] = 0;
   }
 }
+
 
 void updateState()
 {
@@ -201,9 +192,9 @@ void updateState()
     lcd.setCursor(9,1);
     lcd.print(setTemp);
     Serial.println("Starting");
-    if((currentTemp + 25) < setTemp) {
+    if((currentTemp + 25) > setTemp) {
       //No point waiting for beans and coasting:(, might as well do PROP
-      controlState = PROP
+      controlState = PROP;
     } else {
       controlState = BEANS;
     }
@@ -211,11 +202,10 @@ void updateState()
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
-    controlStateChanged = true;
   }
-  
   buttonsUsed();
 }
+
 
 void updateTemp() {
   
@@ -233,7 +223,6 @@ void updateTemp() {
         Serial.println("Coasting Now");
         relayPower = 0;
         controlState = COAST;
-        controlStateChanged = true;
       }
     }
   
@@ -244,24 +233,17 @@ void updateTemp() {
       }
       if((maxTemp - currentTemp) > fallDetectThresh) {
         controlState = PROP;
-        controlStateChanged = true;
-        Input = currentTemp;
-        Setpoint = setTemp;
-        myPID.SetMode(AUTOMATIC);
-        myPID.SetOutputLimits(0,100);
-        myPID.SetSampleTime(PIDSampleTime);
       }
     }
   
     if(controlState == PROP) {
-      Input = currentTemp;
       if(currentTemp > setTemp) {
         relayPower = slowFall - (currentTemp - setTemp) * 0.6;
         if(relayPower < 1.5) {
           relayPower = 0;
         }
-      } else if(myPID.Compute()) {
-        relayPower = Output + slowFall;
+      } else {
+        relayPower = (setTemp - currentTemp)*kP + slowFall;
         if(relayPower > 30) {
           relayPower = 30;
         }
@@ -292,6 +274,7 @@ void updateTemp() {
     Serial.println(relayPower);
   }
 }
+
 
 void updateRelay()
 {
