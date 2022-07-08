@@ -90,6 +90,14 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   updateTempAndControl();
   delay(2000);
+  if(currentTemp < 0) {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Temp sens bad");
+    while(1) {
+      delay(1000);
+    }
+  }
 }
 
 
@@ -278,6 +286,13 @@ void updateTempAndControl() {
     Serial.print(controlState);
     Serial.print(",");
     Serial.println(relayPower);
+  } else {
+    // If the temp sensor gives a bad reading, then power is cut to the
+    // element until it sorts itself out.
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Bad temp read");
+    relayPower = 0;
   }
 }
 
