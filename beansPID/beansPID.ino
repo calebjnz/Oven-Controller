@@ -1,11 +1,19 @@
+// Libraries
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <LiquidCrystal.h>
 
-#define ONE_WIRE_BUS 2 
+// Pins
+#define TEMP_SENS_PIN 2 
 #define RELAY_PIN 12
 
+// Key easy to adjust values
 float kP = 8;
+int estOvershoot = 18;
+float slowFallGradient = 0.6;
+float minRelayPower = 1;
+float maxRelayPower = 30;
+
 
 // Definitions for screen state
 #define SET_SCREEN 1
@@ -50,9 +58,7 @@ float slowFall = 4;
 // Control stuff
 int controlState = IDLING;
 bool relayState = 0;
-int estOvershoot = 18;
 float relayPower = 0;
-int propGain = 10;
 
 //Temperature stuff
 float currentTemp = 420;
@@ -67,7 +73,7 @@ bool currButState[4] = {0,0,0,0};
 
 // Setup a oneWire instance to communicate with any OneWire devices  
 // (not just Maxim/Dallas temperature ICs) 
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(TEMP_SENS_PIN);
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature sensors(&oneWire);
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
@@ -82,7 +88,7 @@ void setup() {
   Serial.begin(9600);
   sensors.begin();
   pinMode(RELAY_PIN, OUTPUT);
-  updateTemp();
+  updateTempAndControl();
   delay(2000);
 }
 
@@ -101,7 +107,7 @@ void loop()
   }
 
   if((millis() - lastTempCheck) > tempCheckPeriod) {
-    updateTemp();
+    updateTempAndControl();
     lastTempCheck = millis();
   }
 
@@ -193,12 +199,12 @@ void updateState()
     lcd.print(setTemp);
     Serial.println("Starting");
     if((currentTemp + 25) > setTemp) {
-      //No point waiting for beans and coasting:(, might as well do PROP
+      //No point waiting for beans and coasting:(, might as well do PROP immediatley
       controlState = PROP;
     } else {
       controlState = BEANS;
     }
-    slowFall = (setTemp * 0.1) - 1;
+    slowFall = (setTemp * 0.1);
     relayStartTime = millis();
     delay(1000);
     screenState = CURRENT_TEMP_SCREEN;
@@ -207,8 +213,7 @@ void updateState()
 }
 
 
-void updateTemp() {
-  
+void updateTempAndControl() {
   // Read the temperature that the sensor prepared
   currentTemp = sensors.getTempCByIndex(0);
   
@@ -235,17 +240,18 @@ void updateTemp() {
         controlState = PROP;
       }
     }
-  
+
+    // If we are in proportional control
     if(controlState == PROP) {
       if(currentTemp > setTemp) {
-        relayPower = slowFall - (currentTemp - setTemp) * 0.6;
-        if(relayPower < 1.5) {
+        relayPower = slowFall - (currentTemp - setTemp) * slowFallGradient;
+        if(relayPower < minRelayPower) {
           relayPower = 0;
         }
       } else {
         relayPower = (setTemp - currentTemp)*kP + slowFall;
-        if(relayPower > 30) {
-          relayPower = 30;
+        if(relayPower > maxRelayPower) {
+          relayPower = maxRelayPower;
         }
       }
     }
@@ -276,6 +282,7 @@ void updateTemp() {
 }
 
 
+// Controls the state of the relay depending on the relayPower
 void updateRelay()
 {
   if((relayStartTime + relayPeriod) < millis()) {
