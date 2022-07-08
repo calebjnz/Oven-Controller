@@ -10,7 +10,7 @@
 // Key easy to adjust values
 float kP = 8;
 int estOvershoot = 18;
-float slowFallGradient = 0.6;
+float fallGradient = 0.6;
 float minRelayPower = 1;
 float maxRelayPower = 30;
 
@@ -252,7 +252,7 @@ void updateTempAndControl() {
     // If we are in proportional control
     if(controlState == PROP) {
       if(currentTemp > setTemp) {
-        relayPower = slowFall - (currentTemp - setTemp) * slowFallGradient;
+        relayPower = slowFall - (currentTemp - setTemp) * fallGradient;
         if(relayPower < minRelayPower) {
           relayPower = 0;
         }
