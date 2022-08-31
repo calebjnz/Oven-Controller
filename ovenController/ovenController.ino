@@ -1,7 +1,7 @@
 // Libraries
-#include <DallasTemperature.h>
-#include <OneWire.h>
-#include <LiquidCrystal.h>
+#include <DallasTemperature.h> // https://github.com/milesburton/Arduino-Temperature-Control-Library
+#include <OneWire.h> // https://github.com/PaulStoffregen/OneWire
+#include <LiquidCrystal.h> // https://github.com/arduino-libraries/LiquidCrystal
 
 // Pins
 #define TEMP_SENS_PIN 2 
